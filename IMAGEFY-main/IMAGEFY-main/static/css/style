@@ -1,0 +1,19 @@
+/* Optional CSS file */
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+input {
+    padding: 10px;
+    width: 300px;
+    margin: 10px;
+}
+button {
+    padding: 10px;
+    cursor: pointer;
+}
+img {
+    margin-top: 20px;
+    width: 512px;
+    height: auto;
+}

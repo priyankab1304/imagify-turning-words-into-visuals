@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMAGEFY</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            width: 250px;
+            background: #343a40;
+            color: white;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .sidebar h4 {
+            text-align: center;
+        }
+        .loading-spinner {
+            display: none;
+            width: 3rem;
+            height: 3rem;
+        }
+        .parameter-info {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: -0.5rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="d-flex">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h4>IMAGEFY</h4>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content flex-grow-1 p-4 text-center">
+            <h3>What can I help with?</h3>
+            <div class="d-flex justify-content-center mt-4">
+                <div class="input-group" style="max-width: 600px;">
+                    <input type="text" class="form-control" id="prompt" placeholder="What do you want to draw?">
+                    <button class="btn btn-primary" onclick="generateImage()" id="generateBtn">
+                        <span id="generateText">Generate</span>
+                        <div class="spinner-border spinner-border-sm loading-spinner" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Settings -->
+            <div class="card p-4 mt-4">
+                <h4 class="text-center">Settings</h4>
+                
+                <div class="mb-3">
+                    <div class="d-flex align-items-center">
+                        <label class="me-3 fw-bold">Seed</label>
+                        <input type="range" class="form-range flex-grow-1" min="0" max="1000" value="0" id="seedRange">
+                        <input type="number" class="form-control ms-3 w-25" id="seedInput" value="0">
+                    </div>
+                    <div class="parameter-info">Random seed for reproducibility (0 for random)</div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex align-items-center">
+                        <label class="me-3 fw-bold">Width</label>
+                        <input type="range" class="form-range flex-grow-1" min="256" max="1920" step="64" value="960" id="widthRange">
+                        <input type="number" class="form-control ms-3 w-25" id="widthInput" value="960">
+                    </div>
+                    <div class="parameter-info">Image width (256-1920, in increments of 64)</div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex align-items-center">
+                        <label class="me-3 fw-bold">Height</label>
+                        <input type="range" class="form-range flex-grow-1" min="256" max="1920" step="64" value="1024" id="heightRange">
+                        <input type="number" class="form-control ms-3 w-25" id="heightInput" value="1024">
+                    </div>
+                    <div class="parameter-info">Image height (256-1920, in increments of 64)</div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex align-items-center">
+                        <label class="me-3 fw-bold">Guidance Scale</label>
+                        <input type="range" class="form-range flex-grow-1" min="1" max="10" step="0.1" value="4.5" id="guidanceRange">
+                        <input type="number" class="form-control ms-3 w-25" id="guidanceInput" value="4.5" step="0.1">
+                    </div>
+                    <div class="parameter-info">How closely to follow the prompt (1-10)</div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex align-items-center">
+                        <label class="me-3 fw-bold">Steps</label>
+                        <input type="range" class="form-range flex-grow-1" min="10" max="100" value="40" id="stepsRange">
+                        <input type="number" class="form-control ms-3 w-25" id="stepsInput" value="40">
+                    </div>
+                    <div class="parameter-info">Number of diffusion steps (10-100, more steps = better quality but slower)</div>
+                </div>
+            </div>
+
+            <!-- Output -->
+            <div id="output" class="mt-4"></div>
+            <div id="info" class="text-muted mb-3"></div>
+            <a id="download" href="#" download="generated_image.jpg" class="btn btn-success mt-3" style="display: none;">Download Image</a>
+        </div>
+    </div>
+
+    <!-- Include Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
+    
+    <script>
+        // Sync range sliders with number inputs
+        function syncRangeAndInput(rangeId, inputId) {
+            const range = document.getElementById(rangeId);
+            const input = document.getElementById(inputId);
+
+            range.addEventListener("input", () => input.value = range.value);
+            input.addEventListener("input", () => range.value = input.value);
+        }
+
+        // Setup all sliders
+        function setupSliders() {
+            syncRangeAndInput("seedRange", "seedInput");
+            syncRangeAndInput("widthRange", "widthInput");
+            syncRangeAndInput("heightRange", "heightInput");
+            syncRangeAndInput("guidanceRange", "guidanceInput");
+            syncRangeAndInput("stepsRange", "stepsInput");
+        }
+
+        // Show loading state
+        function setLoading(isLoading) {
+            const btn = document.getElementById("generateBtn");
+            const text = document.getElementById("generateText");
+            const spinner = document.querySelector(".loading-spinner");
+            
+            btn.disabled = isLoading;
+            text.style.display = isLoading ? "none" : "inline";
+            spinner.style.display = isLoading ? "inline-block" : "none";
+        }
+
+        // Generate image with current parameters
+        async function generateImage() {
+            const prompt = document.getElementById("prompt").value;
+            const seed = document.getElementById("seedInput").value;
+            const width = document.getElementById("widthInput").value;
+            const height = document.getElementById("heightInput").value;
+            const guidanceScale = document.getElementById("guidanceInput").value;
+            const steps = document.getElementById("stepsInput").value;
+            const output = document.getElementById("output");
+            const info = document.getElementById("info");
+            const downloadLink = document.getElementById("download");
+
+            if (!prompt) {
+                output.innerHTML = '<div class="alert alert-warning">Please enter a prompt</div>';
+                return;
+            }
+
+            output.innerHTML = "";
+            info.innerHTML = "";
+            downloadLink.style.display = "none";
+            setLoading(true);
+
+            try {
+                const response = await fetch("/generate-image", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                        prompt, 
+                        seed: seed || 0,  // Send 0 if empty
+                        width, 
+                        height, 
+                        guidanceScale, 
+                        steps 
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    output.innerHTML = `<img src="${data.image_url}" alt="Generated Image" class="img-fluid rounded shadow">`;
+                    info.innerHTML = `
+                        <div>Generated in ${data.generation_time} (${data.dimensions})</div>
+                        <div class="small">Seed: ${data.parameters.seed}, Steps: ${data.parameters.steps}, Guidance: ${data.parameters.guidance_scale}</div>
+                    `;
+                    downloadLink.href = data.image_url;
+                    downloadLink.style.display = "inline-block";
+                } else {
+                    output.innerHTML = `<div class="alert alert-danger">${data.error || "Error generating image"}</div>`;
+                }
+            } catch (error) {
+                output.innerHTML = `<div class="alert alert-danger">Network error: ${error.message}</div>`;
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            setupSliders();
+            
+            // Allow pressing Enter in prompt field to generate
+            document.getElementById("prompt").addEventListener("keypress", function(e) {
+                if (e.key === "Enter") {
+                    generateImage();
+                }
+            });
+        };
+    </script>
+</body>
+</html>
+
+
+
+
+
